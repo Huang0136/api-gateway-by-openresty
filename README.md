@@ -21,6 +21,10 @@
         若需要认证，拿cookie的信息到redis中查找相应的session信息，如果没有则表示无效的cookie，没有权限；否则再根据uri从redis拿该资源被哪些角色所拥有。然后根据当前用户的session中的角色信息与资源所属角色进行判断，即可以知道当前用户是否拥有权限，达到鉴权的目的。  
         将session中的信息（user_id、company_id等）放入到header中，后台业务逻辑处理可能会用到。          
 #### 步骤
-    lsdfsjl
-
+    1、安装OpenResty;  
+    2、安装etcd;  
+    3、安装redis;  
 # 存在问题
+    1、nginx启动时，默认upstream要有相应的配置（即存储upstream信息的文件servers_test.conf至少要有一条记录，可随意填一个不存在的后台进程，只要nginx启动好后，nginx会去拉取etcd中的信息，然后更新到该文件中）；    
+    2、后台节点都下线或者挂掉之后，查看nginx中的upstream信息（/upstream_list），会至少存在一个后台节点信息（备注：跟nginx的upstream配置有关，即至少需要存在一个节点信息。影响不大，因为后台进程都挂掉了，即使upstream里面还存在一个节点，请求也会失败）。    
+    3、restful uri转成资源的url（比较啰嗦）；    
