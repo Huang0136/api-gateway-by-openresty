@@ -12,19 +12,19 @@
     Redis：性能极高的NoSQL数据库，用来存储session。
     
 #### 实现细节
-    1、基于nginx对外提供http、websocket服务；  
-    2、基于etcd做服务注册与发现；  
-    后台web服务启动时，将当前的节点信息注册到etcd（例如账户模块，key：upstreams/accounts/ip:port，value："{\"weight\":1, \"max_fails\":2, \"fail_timeout\":10}"），并设置ttl。后台服务进程不断的更新该节点的ttl，当后台进程挂掉或者下线时，ttl到期则该节点失效。  
-    nginx采用第三方插件nginx-upsync-module(https://github.com/weibocom/nginx-upsync-module) 进行服务的发现。 nginx启动时拉取etcd中的配置（upstreams/accounts）作为upstream配置，之后每隔一段时间都去拉取etcd中的节点信息更新到当前的upstream配置。  
-    3、nginx的NGX_HTTP_ACCESS_PHASE阶段，对请求进行处理（认证和鉴权实现）。  
-    lua整合nginx，根据uri判断当前资源是否需要认证（即cookie是否存在）；  
-        若需要认证，拿cookie的信息到redis中查找相应的session信息，如果没有则表示无效的cookie，没有权限；否则再根据uri从redis拿该资源被哪些角色所拥有。然后根据当前用户的session中的角色信息与资源所属角色进行判断，即可以知道当前用户是否拥有权限，达到鉴权的目的。  
-        将session中的信息（user_id、company_id等）放入到header中，后台业务逻辑处理可能会用到。  
+1、基于nginx对外提供http、websocket服务；  
+2、基于etcd做服务注册与发现；    
+  2.1 后台web服务启动时，将当前的节点信息注册到etcd（例如账户模块，key：upstreams/accounts/ip:port，value："{\"weight\":1, \"max_fails\":2, \"fail_timeout\":10}"），并设置ttl。后台服务进程不断的更新该节点的ttl，当后台进程挂掉或者下线时，ttl到期则该节点失效。  
+  2.2 nginx采用第三方插件nginx-upsync-module(https://github.com/weibocom/nginx-upsync-module) 进行服务的发现。 nginx启动时拉取etcd中的配置（upstreams/accounts）作为upstream配置，之后每隔一段时间都去拉取etcd中的节点信息更新到当前的upstream配置。  
+3、nginx的NGX_HTTP_ACCESS_PHASE阶段，对请求进行处理（认证和鉴权实现）。  
+  3.1 lua整合nginx，根据uri判断当前资源是否需要认证（即cookie是否存在）；  
+  3.2若需要认证，拿cookie的信息到redis中查找相应的session信息，如果没有则表示无效的cookie，没有权限；否则再根据uri从redis拿该资源被哪些角色所拥有。然后根据当前用户的session中的角色信息与资源所属角色进行判断，即可以知道当前用户是否拥有权限，达到鉴权的目的。  
+  3.3 将session中的信息（user_id、company_id等）放入到header中，后台业务逻辑处理可能会用到。    
 #### 实施步骤（略）
     1、安装OpenResty;  
     2、安装etcd;  
     3、安装redis;  
 # 存在问题
-    1、nginx启动时，默认upstream要有相应的配置（即存储upstream信息的文件servers_test.conf至少要有一条记录，可随意填一个不存在的后台进程，只要nginx启动好后，nginx会去拉取etcd中的信息，然后更新到该文件中）；  
-    2、后台节点都下线或者挂掉之后，查看nginx中的upstream信息（/upstream_list），会至少存在一个后台节点信息（备注：跟nginx的upstream配置有关，即至少需要存在一个节点信息。影响不大，因为后台进程都挂掉了，即使upstream里面还存在一个节点，请求也会失败）。  
-    3、restful uri转成资源的url（比较啰嗦）；  
+  1、nginx启动时，默认upstream要有相应的配置（即存储upstream信息的文件servers_test.conf至少要有一条记录，可随意填一个不存在的后台进程，只要nginx启动好后，nginx会去拉取etcd中的信息，然后更新到该文件中）；  
+  2、后台节点都下线或者挂掉之后，查看nginx中的upstream信息（/upstream_list），会至少存在一个后台节点信息（备注：跟nginx的upstream配置有关，即至少需要存在一个节点信息。影响不大，因为后台进程都挂掉了，即使upstream里面还存在一个节点，请求也会失败）；  
+  3、restful uri转成资源的url（比较啰嗦）；  
